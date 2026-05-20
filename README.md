@@ -46,7 +46,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=你的Supabase匿名密钥
 
 ## 核心技巧：强制 LLM 只返回 JSON
 
-调用 LLM 分析股票时，最头疼的问题是模型经常返回 Markdown 代码块、解释性文字，或者 JSON 格式不稳定。以下是我在 `/api/analyze` 中使用的完整方案：
+ `/api/analyze` 中使用的完整方案：
 
 ### 1. System Prompt 设计
 
