@@ -1,64 +1,104 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useCallback } from "react";
+import Header from "@/app/components/Header";
+import StockInput from "@/app/components/StockInput";
+import StockDisplay from "@/app/components/StockDisplay";
+import AIAnalysisResult from "@/app/components/AIAnalysisResult";
+import HistoryRecords from "@/app/components/HistoryRecords";
+import type { StockData, AnalysisResult } from "@/lib/types";
+
+export default function HomePage() {
+  const [stockData, setStockData] = useState<StockData | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [historyRefreshTrigger, setHistoryRefreshTrigger] = useState(0);
+
+  const [isLoadingStock, setIsLoadingStock] = useState(false);
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
+  const [stockError, setStockError] = useState<string | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  const handleFetchStock = useCallback(async (symbol: string) => {
+    setIsLoadingStock(true);
+    setStockError(null);
+    setAnalysisResult(null);
+
+    try {
+      const res = await fetch(`/api/stock?symbol=${encodeURIComponent(symbol)}`);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "获取行情失败");
+      }
+      const data: StockData = await res.json();
+      setStockData(data);
+    } catch (err) {
+      setStockError(err instanceof Error ? err.message : "未知错误");
+      setStockData(null);
+    } finally {
+      setIsLoadingStock(false);
+    }
+  }, []);
+
+  const handleSelectRecord = useCallback((record: AnalysisResult) => {
+    setStockError(null);
+    setAnalysisError(null);
+    setStockData({
+      symbol: record.symbol,
+      price: record.price,
+      change_percent: record.change_percent,
+      open: record.open,
+      high: record.high,
+      low: record.low,
+      volume: record.volume,
+      updated_at: record.created_at.split("T")[0],
+    });
+    setAnalysisResult(record);
+  }, []);
+
+  const handleAnalyze = useCallback(async () => {
+    if (!stockData) return;
+
+    setIsLoadingAnalysis(true);
+    setAnalysisError(null);
+
+    try {
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(stockData),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "AI 分析失败");
+      }
+      const data: AnalysisResult = await res.json();
+      setAnalysisResult(data);
+      setHistoryRefreshTrigger((prev) => prev + 1);
+    } catch (err) {
+      setAnalysisError(err instanceof Error ? err.message : "未知错误");
+    } finally {
+      setIsLoadingAnalysis(false);
+    }
+  }, [stockData]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+
+      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        <StockInput
+          onFetchStock={handleFetchStock}
+          onAnalyze={handleAnalyze}
+          isLoadingStock={isLoadingStock}
+          isLoadingAnalysis={isLoadingAnalysis}
+          hasStockData={stockData !== null}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+
+        <StockDisplay data={stockData} isLoading={isLoadingStock} error={stockError} />
+
+        <AIAnalysisResult analysis={analysisResult} isLoading={isLoadingAnalysis} error={analysisError} />
+
+        <HistoryRecords refreshTrigger={historyRefreshTrigger} onSelectRecord={handleSelectRecord} />
       </main>
     </div>
   );
