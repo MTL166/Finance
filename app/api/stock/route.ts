@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   if (data["Note"] || data["Information"]) {
     const msg = data["Note"] || data["Information"] || "";
     console.error("Alpha Vantage rate limit:", msg);
-    return NextResponse.json({ error: "API 请求频率超限，请等待1分钟后再试" }, { status: 429 });
+    return NextResponse.json({ error: "API 请求频率超过当日限制（15次）" }, { status: 429 });
   }
 
   const timeSeries = data["Time Series (Daily)"];
