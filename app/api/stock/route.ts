@@ -18,9 +18,11 @@ export async function GET(request: NextRequest) {
   const data = await response.json();
 
   if (data["Error Message"]) {
-    return NextResponse.json({ error: "无效的股票代码" }, { status: 400 });
+    return NextResponse.json({ error: "无效的股票代码或 API Key" }, { status: 400 });
   }
-  if (data["Note"]) {
+  if (data["Note"] || data["Information"]) {
+    const msg = data["Note"] || data["Information"] || "";
+    console.error("Alpha Vantage rate limit:", msg);
     return NextResponse.json({ error: "API 请求频率超限，请等待1分钟后再试" }, { status: 429 });
   }
 
